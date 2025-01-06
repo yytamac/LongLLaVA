@@ -118,23 +118,21 @@ class Chatbot():
             else:
                 raise TypeError(f'Unsupported type {type(fp)}')
 
-            if True or self.data_args.image_aspect_ratio == 'pad':
-                def expand2square(pil_img, background_color):
-                    width, height = pil_img.size
-                    if width == height:
-                        return pil_img
-                    elif width > height:
-                        result = Image.new(pil_img.mode, (width, width), background_color)
-                        result.paste(pil_img, (0, (width - height) // 2))
-                        return result
-                    else:
-                        result = Image.new(pil_img.mode, (height, height), background_color)
-                        result.paste(pil_img, ((height - width) // 2, 0))
-                        return result
-                image = expand2square(image, tuple(int(x*255) for x in processor.image_mean))
-                image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
-            else:
-                image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0] # a tensor
+            def expand2square(pil_img, background_color):
+                width, height = pil_img.size
+                if width == height:
+                    return pil_img
+                elif width > height:
+                    result = Image.new(pil_img.mode, (width, width), background_color)
+                    result.paste(pil_img, (0, (width - height) // 2))
+                    return result
+                else:
+                    result = Image.new(pil_img.mode, (height, height), background_color)
+                    result.paste(pil_img, ((height - width) // 2, 0))
+                    return result
+            image = expand2square(image, tuple(int(x*255) for x in processor.image_mean))
+            image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
+            
             list_image_tensors.append(image.to(self.device))
         return list_image_tensors
 
@@ -316,8 +314,16 @@ class Chatbot():
         
         
                 
+        # Logic to add <image> tags at the beginning of text if there are no <image> tags
+        num_images_in_text = text.count('<image>')
+
+        # If there are fewer <image> tags than images, add the difference at the start of the text
+        if num_images_in_text < len(images):
+            missing_images = len(images) - num_images_in_text
+            text = '<image>' * missing_images + text
+        
         if '</img>' not in text:
-            text = text.replace('<image>', '<img><image></img>')
+                text = text.replace('<image>', '<img><image></img>')
 
         if len(images):
             if 'bestFit' in self.config.patchStrategy:

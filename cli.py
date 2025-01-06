@@ -84,57 +84,6 @@ class Chatbot():
             raise ValueError(f'Unsupported tensor type: {return_tensors}')
         return input_ids
 
-    def get_conv(self, text):
-        ret = []
-        if self.history is None:
-            self.history = []
-
-        for conv in self.history:
-            ret.append({'from': 'human', 'value': conv[0]})
-            ret.append({'from': 'gpt', 'value': conv[1]})
-
-        ret.append({'from': 'human', 'value': text})
-        ret.append({'from': 'gpt', 'value': None})
-
-        return ret
-
-
-    def get_image_tensors(self, images):
-        list_image_tensors = []
-        crop_size = self.processor.crop_size
-        processor = self.processor
-        for fp in images:
-            # if fp is None and self.data_args.is_multimodal: # None is used as a placeholder
-            if fp is None: # None is used as a placeholder
-                list_image_tensors.append(torch.zeros(3, crop_size['height'], crop_size['width']).to(self.device))
-                continue
-            elif isinstance(fp, str):
-                image = Image.open(fp).convert('RGB')
-            elif isinstance(fp, Image.Image):
-                image = fp # already an image
-            else:
-                raise TypeError(f'Unsupported type {type(fp)}')
-
-            if True or self.data_args.image_aspect_ratio == 'pad':
-                def expand2square(pil_img, background_color):
-                    width, height = pil_img.size
-                    if width == height:
-                        return pil_img
-                    elif width > height:
-                        result = Image.new(pil_img.mode, (width, width), background_color)
-                        result.paste(pil_img, (0, (width - height) // 2))
-                        return result
-                    else:
-                        result = Image.new(pil_img.mode, (height, height), background_color)
-                        result.paste(pil_img, ((height - width) // 2, 0))
-                        return result
-                image = expand2square(image, tuple(int(x*255) for x in processor.image_mean))
-                image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
-            else:
-                image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0] # a tensor
-            list_image_tensors.append(image.to(self.device))
-        return list_image_tensors
-
 
     def chat_with_jamba(self, text: str, media=None, isVideo=False, t=1.0, frameNum=128, patchside_length=336, patchStrategy='norm'):
         def extract_frames(video, t=1.0, frameNum=128):
@@ -302,9 +251,6 @@ class Chatbot():
                 print(f"The provided mediaItem is neither a recognized path nor a media object.\n mediaItem:{mediaItem}")
                 continue
 
-
-        # assert len(images) < self.max_images_per_round, f'at most {self.max_images_per_round} images'
-
         if VideoFLAG or isVideo:
             if len(images) > frameNum:
                 indices = np.linspace(0, len(images) - 1, frameNum, dtype=int)
@@ -312,15 +258,22 @@ class Chatbot():
             
             text = insert_image_placeholder_for_video(text, len(images))
         
+                 
+        # Logic to add <image> tags at the beginning of text if there are no <image> tags
+        num_images_in_text = text.count('<image>')
+
+        # If there are fewer <image> tags than images, add the difference at the start of the text
+        if num_images_in_text < len(images):
+            missing_images = len(images) - num_images_in_text
+            text = '<image>' * missing_images + text
         
-                
         if '</img>' not in text:
-            text = text.replace('<image>', '<img><image></img>')
+                text = text.replace('<image>', '<img><image></img>')
 
         if len(images):
-            if patchStrategy=='bestFit':
+            if 'bestFit' in self.config.patchStrategy:
                 text, images = processForBestFitPatch(text, images, patchside_length=patchside_length)
-            elif 'norm'!=patchStrategy:
+            elif 'norm'!=self.config.patchStrategy:
                 print('Error: patchStrategy is not Impplmented')
 
 
