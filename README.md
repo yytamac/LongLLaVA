@@ -148,3 +148,18 @@ python ./utils/dense_downcycling.py
       url={https://arxiv.org/abs/2409.02889}, 
 }
 ```
+python3 -m venv path/to/venv
+source path/to/venv/bin/activate
+pip install torch
+pip install PIL
+pip install numpy
+pip install pillow
+pip install opencv-python
+pip install transformers
+pip install sentencepiece
+pip install accelerate
+pip install mamba
+pip install causal-conv1d
+nvidia-smi --query-gpu=driver_version --format=csv
+sudo apt install nvidia-utils-470
+python3 cli.py --model_dir /home/tamyuiyuk/.cache/huggingface/hub/models--FreedomIntelligence--Jamba-9B-Instruct/snapshots/84e9e4955b2a088eb0946c58ebadd60312302a32
